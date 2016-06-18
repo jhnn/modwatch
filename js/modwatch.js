@@ -1,5 +1,7 @@
 var fontCaviarDreams;
 var currentSubreddit;
+var currentSubredditSize;
+var currentRunID = 0;
 
 function preload() {
 	fontCaviarDreams = loadFont('fonts/CaviarDreams.ttf');
@@ -23,6 +25,7 @@ function draw() {
 
 $('#domainform').on('submit', function(event){
 	event.preventDefault();
+	var runID = ++currentRunID;
 	
 	// Clear the buttons and result div
 	$("#saveimage").html("");
@@ -37,7 +40,7 @@ $('#domainform').on('submit', function(event){
 	.then(function(data){
 			var fullurl = data.data.url;
 			currentSubreddit = fullurl.substring(0, fullurl.length - 1);
-			searchsubreddit(currentSubreddit);
+			searchsubreddit(currentSubreddit, runID);
 		},
 		function(error){
 			// The subreddit may not exist or be unavailable due to e.g. quarantine
@@ -51,7 +54,10 @@ $('#domainform').on('submit', function(event){
 });
 
 // Search the moderators of a subreddit
-function searchsubreddit(subreddit){
+function searchsubreddit(subreddit, runID){
+	if(runID != currentRunID){
+		return;
+	}
 	var fullurl = "http://www.reddit.com" + subreddit + "/about/moderators.json?jsonp=?";
 	var modnames = [];
 
@@ -65,80 +71,118 @@ function searchsubreddit(subreddit){
 	})
 	.then(function() {
 		drawInformation("searching for mods", "finished collecting mods");
-		processmoderators(modnames);
+		processmoderators(modnames, runID);
 	}, function() { alert("error trying to read a subreddits"); });
 }
 
 // Look up the subreddit each mod is moderating
-function processmoderators(modnames){
+function processmoderators(modnames, runID){
+	if(runID != currentRunID){
+		return;
+	}
 	drawInformation("finished collecting mods", "searching for subreddits");
 	var submodmap = new Map();
-	// Procede recoursively, easier to track progress
-	recProcMods(modnames, modnames.length - 1, submodmap);
+	currentSubredditSize = modnames.length;
+	var acc = currentSubredditSize - 1;
+	drawnsubreddits = Array();
+	
+	processmoderatorsrecoursive(modnames, submodmap, acc, runID);
 }
 
-function recProcMods(modnames, acc, submodmap){
-	// Look up data for a mod in the database or get from the web
-	$.getJSON("../php/modwatchdb.php?u=" + modnames[acc], function (data) {
-		$.each( data.subreddits, function (i, subreddit) {
-			subreddit = "/r/" + subreddit;
-			// Create new entry in the map or increase counter
-			if(submodmap.has(subreddit)){
-				var number = submodmap.get(subreddit);
-				submodmap.set(subreddit, number + 1);
-			} else {
-				submodmap.set(subreddit, 1);
-			}
-		})
-	})
-	.then(function() {
-		var processedMods = modnames.length - acc;
-		drawInformation("processedMods " + processedMods + "/" + modnames.length, "subreddits " + submodmap.size);
-		if(acc > 0){
-			// Continue if there are still mods to process
-			recProcMods(modnames, acc - 1, submodmap);
-		}
-		else{
-			// Get the size of the current subreddit and remove it from the map
-			var curSubSize = submodmap.get(currentSubreddit);
-			submodmap.delete(currentSubreddit);
-			
-			// Put all map entries with multiplicity larger one in a list and sort by multiplicity
-			var sortedsubs = [];
-			for (var [key, value] of submodmap.entries()) {
-				if(value > 1){
-					sortedsubs.push([key, value])
+function processmoderatorsrecoursive( modnames, submodmap, acc, runID){
+	if(runID != currentRunID){
+		return;
+	}
+	if(acc >= 0){
+		$.getJSON("../php/modwatchdb.php?u=" + modnames[acc], function (data) {
+			$.each( data.subreddits, function (i, data) {
+				data = "/r/" + data;
+				// Create new entry in the map or increase counter
+				if(submodmap.has(data)){
+					var number = submodmap.get(data) + 1;
+					submodmap.set(data, number);
+					updateDrawnSubreddits(data, number);
+				} else {
+					submodmap.set(data, 1);
 				}
-			};
-			sortedsubs.sort(function(a, b) {
-				return b[1] - a[1];
 			});
-			
-			// Draw only the top 10 entries
-			var drawnsubs = sortedsubs.slice(0,10);
-			var angle = 0;
-			var deltaAngle = 2 * Math.PI / drawnsubs.length;
-			
-			clearCanvas();
-			for(var j = 0; j < drawnsubs.length; j++){
-				var dx = Math.sin(angle) * 250;
-				var dy = Math.cos(angle) * 250;
-				
-				var subSize = drawnsubs[j][1];
-				drawRelatedSubreddit(drawnsubs[j][0], subSize, subSize/curSubSize, dx, dy);
-				angle = angle + deltaAngle;
+			submodmap.delete(currentSubreddit);
+			drawSubreddits();
+			var processedMods = modnames.length - acc;
+			drawSubreddit("processedMods " + processedMods + "/" + modnames.length, "subreddits " + submodmap.size);
+		})
+		.then(function() {
+			processmoderatorsrecoursive(modnames, submodmap, acc - 1, runID);
+		}, function() {
+			alert("error trying to read a redditors profile");
+			processmoderatorsrecoursive(modnames, submodmap, acc - 1, runID);
+		});
+	}
+	else
+	{
+		drawSubreddits();
+		drawCurrentSubreddit();
+		
+		var sortedsubs = [];
+		for (var [key, value] of submodmap.entries()) {
+			if(value > 1){
+				sortedsubs.push([key, value])
 			}
-			
-			drawSubreddit(currentSubreddit, curSubSize);
-			
-			// Create buttons to save image and expand raw data
-			$("#saveimage").html("<button id='saveimagebutton' onclick='saveImage()'>Save image</button>");
-			$("#showraw").html("<button id='showrawbutton' onclick='expandRawData()'>Show raw data</button>");
-			for(var l = 0; l < sortedsubs.length; l++){
-				$("#rawresults").append('<p>' + sortedsubs[l][0] + ": " + sortedsubs[l][1] + '</p>');
-			}
+		};
+		sortedsubs.sort(function(a, b) {
+			return b[1] - a[1];
+		});
+		// Create buttons to save image and expand raw data
+		$("#saveimage").html("<button id='saveimagebutton' onclick='saveImage()'>Save image</button>");
+		$("#showraw").html("<button id='showrawbutton' onclick='expandRawData()'>Show raw data</button>");
+		for(var l = 0; l < sortedsubs.length; l++){
+			$("#rawresults").append('<p>' + sortedsubs[l][0] + ": " + sortedsubs[l][1] + '</p>');
 		}
-	}, function() { alert("error trying to read a redditors profile"); });
+	}
+}
+
+function drawSubreddits(){
+	var angle = 0;
+	var deltaAngle = 2 * Math.PI / drawnsubreddits.length;
+	
+	clearCanvas();
+	for(var j = drawnsubreddits.length - 1; j >= 0; j--){
+		var dx = Math.sin(angle) * 250;
+		var dy = Math.cos(angle) * 250;
+		
+		var subSize = drawnsubreddits[j][1];
+		drawRelatedSubreddit(drawnsubreddits[j][0], drawnsubreddits[j][1], drawnsubreddits[j][2], dx, dy);
+		angle = angle + deltaAngle;
+	}
+}
+
+var drawnsubreddits = Array();
+function updateDrawnSubreddits(subreddit, number) {
+	for(i = 0; i < drawnsubreddits.length; i++){
+		if(drawnsubreddits[i][0] == subreddit){
+			drawnsubreddits[i][1] = number;
+			sortDrawnSubreddits();
+			return;
+		}
+	}
+	if(drawnsubreddits.length < 10){
+		drawnsubreddits.push([subreddit, number, random(256)]);
+		sortDrawnSubreddits();
+	}
+	else
+	{
+		var min = drawnsubreddits[0][1];
+		if(number > min){
+			drawnsubreddits[0] = [subreddit, number, random(256)];
+			sortDrawnSubreddits();
+		}
+	}
+}
+
+function sortDrawnSubreddits(){
+	drawnsubreddits.sort(function(a, b) {
+		return a[1] - b[1];
+	});
 }
 
 function saveImage(){
@@ -168,17 +212,21 @@ function drawSubreddit(name, size){
 	text(size, 360, 380);
 }
 
-function drawRelatedSubreddit(name, size, relSize, deltaX, deltaY){
-	var rndColor = random(256);
+function drawCurrentSubreddit(){
+	drawSubreddit(currentSubreddit, currentSubredditSize);
+}
+
+function drawRelatedSubreddit(name, size, color, deltaX, deltaY){
+	var relSize = size / currentSubredditSize;
 	var px = 360 + deltaX;
 	var py = 360 + deltaY;
 	
-	stroke(rndColor, 45, 95);
+	stroke(color, 45, 95);
 	strokeWeight(100 * relSize);
 	line(360,360, px, py);
 	noStroke();
 	
-	fill(rndColor, 80, 90);
+	fill(color, 80, 90);
 	ellipse(px, py, 200 * relSize, 200 * relSize);
 	drawText(px, py, name, size);
 }
