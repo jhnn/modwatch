@@ -1,3 +1,7 @@
+html {
+	min-height: 100%;
+}
+
 body {
 	background-size: 100% 100%;
     /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#7d7e7d+0,444444+100 */
@@ -7,8 +11,7 @@ body {
 	background: linear-gradient(to bottom, #7d7e7d 0%,#444444 100%) no-repeat; /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
 	padding:0;
 	margin:0;
-	
-	
+	height: 100%;
 }
 
 @font-face {
@@ -21,8 +24,6 @@ p {
 }
 
 h1 {
-    color: white;
-    margin-left: 20px;
 	font-family: "CaviarDreams", Arial, sans-serif;
 }
 
@@ -73,6 +74,11 @@ input {
 
 div {
 	margin: auto;
+}
+
+#caption {
+	color: white;
+    margin-left: 20px;
 }
 
 #container {
