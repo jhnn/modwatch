@@ -1,0 +1,55 @@
+html {
+	height: 100%;
+}
+
+body {
+	background-size: 100% 100%;
+    /* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#7d7e7d+0,444444+100 */
+	background: #7d7e7d; /* Old browsers */
+	background: -moz-linear-gradient(top, #7d7e7d 0%, #444444 100%) no-repeat; /* FF3.6-15 */
+	background: -webkit-linear-gradient(top, #7d7e7d 0%,#444444 100%) no-repeat; /* Chrome10-25,Safari5.1-6 */
+	background: linear-gradient(to bottom, #7d7e7d 0%,#444444 100%) no-repeat; /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+	padding:0;
+	margin:0;
+	
+	
+}
+
+@font-face {
+    font-family: "CaviarDreams";
+    src: url("../fonts/CaviarDreams.ttf");
+}
+
+p {
+    font-family: "CaviarDreams", Arial, sans-serif;
+}
+
+h1 {
+    color: white;
+    margin-left: 20px;
+	font-family: "CaviarDreams", Arial, sans-serif;
+}
+
+h4 {
+	font-family: "CaviarDreams", Arial, sans-serif;
+}
+
+a {
+	font-family: "CaviarDreams", Arial, sans-serif;
+	color: #222222;
+}
+
+a:visited {
+	color: #111111;
+}
+
+#container {
+	margin: auto;
+	height: 100%;
+}
+
+#footer {
+	margin-top: 2px;
+	background: #aaaaaa;
+	padding: 10px;
+}
