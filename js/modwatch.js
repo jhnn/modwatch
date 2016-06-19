@@ -66,7 +66,7 @@ function checkStateClean(runID){
 function collectSubredditData(runID){
 	// Sanitize input
 	var inputname = $('#searchsubreddit').val();
-	inputname = inputname.substr(inputname.indexOf("r/") + 1, inputname.length);
+	inputname = inputname.substr(inputname.lastIndexOf("/") + 1, inputname.length);
 	if(inputname.length > 21){
 		drawInformation("error", "subreddit name too long");
 		return;
